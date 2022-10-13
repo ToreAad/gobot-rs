@@ -46,26 +46,28 @@ impl GameState{
     }
 
     pub fn does_move_violate_ko(states: &Vec<GameState>, move_: Move) -> bool{
-        let last_state = &states[states.len()-1];
-        match move_{
+        let point = match move_{
             Move::Play(point) => {
-                match last_state.last_move{
-                    Some(Move::Play(last_move_point)) => {
-                        let mut next_board = last_state.board.clone();
-                        next_board.place_stone(last_state.next_player, point);
-                        let next_situation = (last_state.next_player, &next_board);
-                        for state in states.iter().rev(){
-                            if state.situation() == next_situation{
-                                return true;
-                            }
-                        }
-                        return false
-                    },
-                    _ => false,
-                }
+                point
             }
-            _ => false,
+            _ => return false,
+        };
+
+        let last_state = match states.last(){
+            None => return false,
+            Some(state) => state,
+        };
+
+        let mut next_board = last_state.board.clone();
+        next_board.place_stone(last_state.next_player, point);
+        let next_situation = (last_state.next_player.other(), &next_board);
+        for state in states.iter().rev(){
+            if state.situation() == next_situation{
+                return true;
+            }
         }
+        false
+
     }
 
     pub fn is_valid_move(states: &Vec<GameState>, move_: Move) -> bool{
@@ -91,15 +93,18 @@ impl GameState{
                 if GameState::does_move_violate_ko(states, move_){
                     return false;
                 }
+                if GameState::is_move_self_capture(&board, player, point){
+                    return false;
+                }
             }
         }
         true
     }
 
-    pub fn is_move_self_capture(&self, player: Player, point: Point) -> bool{
-        let mut new_board = self.board.clone();
+    pub fn is_move_self_capture(board: &Board, player: Player, point: Point) -> bool{
+        let mut new_board = board.clone();
         new_board.place_stone(player, point);
-        let new_string = new_board.grid.get(&point).unwrap().borrow();
+        let new_string = new_board.grid.get(&point).unwrap();
         new_string.num_liberties() == 0
     }
 
@@ -135,14 +140,14 @@ impl GameState{
 }
 
 pub fn is_point_an_eye(board: &Board, point: Point, player: Player) -> bool{
-    if board.get(&point).is_none(){
+    if !board.get(&point).is_none(){
         return false;
     }
     for n in point.neighbours(){
         match board.get(&n){
             None => continue,
             Some(other_player) => {
-                if other_player == player{
+                if other_player != player{
                     return false;
                 }
             }
@@ -157,14 +162,19 @@ pub fn is_point_an_eye(board: &Board, point: Point, player: Player) -> bool{
         Point{row: point.row + 1, col: point.col + 1},
     ];
     for corner in corners.iter(){
-        match board.get(corner){
-            None => off_board_corners += 1,
-            Some(other_player) => {
-                if other_player == player{
-                    friendly_corners += 1;
+        if board.is_on_grid(&corner){
+            match board.get(corner){
+                None => continue,
+                Some(other_player) => {
+                    if other_player == player{
+                        friendly_corners += 1;
+                    }
                 }
             }
+        } else{
+            off_board_corners += 1;
         }
+
     }
 
     if off_board_corners > 0{
@@ -208,77 +218,50 @@ mod test{
     #[test]
     fn test_does_move_violate_ko(){
         let mut states = GameState::new(5);
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
         GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
-
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
         GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
-
-        assert_eq!(GameState::does_move_violate_ko(&states, Move::Play(Point{row: 1, col: 3})), true);
-        assert_eq!(GameState::does_move_violate_ko(&states, Move::Play(Point{row: 2, col: 3})), true);
-        assert_eq!(GameState::does_move_violate_ko(&states, Move::Play(Point{row: 3, col: 3})), true);
+        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 4}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 4}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 4, col: 3}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
+        let mut violates_ko = GameState::does_move_violate_ko(&states, Move::Play(Point{row: 3, col: 3}));
+        assert_eq!(violates_ko, false);
+        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
+        violates_ko = GameState::does_move_violate_ko(&states, Move::Play(Point{row: 2, col: 3}));
+        assert_eq!(violates_ko, true);    
     }
 
     #[test]
     fn test_is_valid_move(){
-        let mut states = GameState::new(5);
+        let mut states = GameState::new(2);
         GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
+        assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 1, col: 1})), false);
         GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
         GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
-
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
-
-        assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 1, col: 3})), false);
-        assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 2, col: 3})), false);
-        assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 3, col: 3})), false);
+        assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 2, col: 2})), false);
     }
 
     #[test]
     fn test_is_over(){
         let mut states = GameState::new(5);
+        GameState::apply_move(&mut states, Move::Resign);
+        assert_eq!(GameState::is_over(&states), true);
+
+        states = GameState::new(5);
+        GameState::apply_move(&mut states, Move::Pass);
+        assert_eq!(GameState::is_over(&states), false);
+        GameState::apply_move(&mut states, Move::Pass);
+        assert_eq!(GameState::is_over(&states), true);
+
+        states = GameState::new(5);
+        GameState::apply_move(&mut states, Move::Pass);
+        assert_eq!(GameState::is_over(&states), false);
         GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
-
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 2}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 1}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 2}));
-
-        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
-
+        GameState::apply_move(&mut states, Move::Pass);
+        assert_eq!(GameState::is_over(&states), false);
+        GameState::apply_move(&mut states, Move::Pass);
         assert_eq!(GameState::is_over(&states), true);
     }
 

@@ -10,9 +10,11 @@ mod agent;
 use agent::{RandomAgent, Agent};
 mod gostring;
 
+mod zobrist;
+
 
 fn main() {
-    let board_size = 2;
+    let board_size = 3;
 
     let mut game = GameState::new(board_size);
     let bots = HashMap::from([
