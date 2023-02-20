@@ -39,6 +39,10 @@ impl fmt::Display for Point{
 }
 
 impl Point{
+
+    pub fn new(row: i32, col: i32) -> Point{
+        Point{row, col}
+    }
     pub fn neighbours(&self) -> Vec<Point>{
         vec![
             Point{row: self.row - 1, col: self.col},

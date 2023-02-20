@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt,
-    rc::Rc,
+    rc::Rc, borrow::Borrow,
 };
 
 use crate::{gostring::GoString, zobrist::{ZoobristHash, HashCodes}};
@@ -50,6 +50,10 @@ impl Board {
         }
     }
 
+    pub fn hash(&self) -> u64 {
+        self._hash
+    }
+
     pub fn place_stone(&mut self, player: Player, point: Point) {
         if !self.is_on_grid(&point) {
             panic!("Point is not on the grid");
@@ -93,6 +97,12 @@ impl Board {
             self.grid
                 .insert(new_string_point, Rc::clone(&new_string_rc));
         }
+
+        // TODO
+        let key = (point, Some(player));
+        let t = self._hash_codes.get(&key).unwrap();
+        self._hash ^= t;
+
         for other_color_string in &adjacent_opposite_color {
             let mut new_other_color_string = other_color_string.as_ref().clone();
             new_other_color_string.remove_liberty(&point);
@@ -111,7 +121,11 @@ impl Board {
     }
 
     pub fn remove_string(&mut self, string: &GoString) {
+        
         for point in string.stones.iter() {
+            let key = (point.clone(), Some(string.player));
+            let t = self._hash_codes.get(&key).unwrap();
+            self._hash ^= t;
             self.grid.remove(&point);
         }
     }
