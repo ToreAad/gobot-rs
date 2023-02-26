@@ -24,8 +24,7 @@ impl fmt::Display for GameResult{
 
 impl GameResult {
     pub fn new(board: &Board, komi: f64) -> GameResult {
-        let territory_map = evaluate_territory(board);
-        let territory = Territory::new(territory_map);
+        let territory = evaluate_territory(board);
         GameResult {
             black_score: territory.black_score(),
             white_score: territory.white_score(),
@@ -104,11 +103,11 @@ fn stone_to_territory_state(stone: Player) -> TerritoryState {
     }
 }
 
-fn evaluate_territory(board: &Board) -> HashMap<Point, TerritoryState> {
+fn evaluate_territory(board: &Board) -> Territory {
     let mut status = HashMap::new();
 
     for r in 1..board.num_rows + 1 {
-        for c in 1..board.num_cols {
+        for c in 1..board.num_cols + 1 {
             let point = Point::new(r, c);
             if status.contains_key(&point) {
                 continue;
@@ -122,7 +121,7 @@ fn evaluate_territory(board: &Board) -> HashMap<Point, TerritoryState> {
                     let (group, neighbour) = collect_region(&point, board, &mut visited);
 
                     if neighbour.len() == 1 {
-                        match neighbour.into_iter().next().unwrap() {
+                        match neighbour.iter().next().unwrap(){
                             Player::Black => {
                                 for point in group {
                                     status.insert(point, TerritoryState::BlackTerritory);
@@ -143,7 +142,7 @@ fn evaluate_territory(board: &Board) -> HashMap<Point, TerritoryState> {
             };
         }
     }
-    status
+    Territory::new(status)
 }
 
 fn collect_region(
@@ -160,26 +159,121 @@ fn collect_region(
     visited.insert(start_pos.clone());
 
     let here = board.get(start_pos);
-    let deltas = vec![(1, 0), (0, 1), (-1, 0), (0, -1)];
+    let deltas = vec![(-1, 0), (1, 0), (0, -1), (0, 1)];
     for (delta_r, delta_c) in deltas {
         let next_point = Point::new(start_pos.row + delta_r, start_pos.col + delta_c);
         if !board.is_on_grid(&next_point) {
             continue;
         }
         let neighbour = board.get(&next_point);
-        match neighbour {
-            Some(stone) => {
-                if here == neighbour {
-                    let (mut points, borders) = collect_region(&next_point, board, visited);
-                    all_points.append(&mut points);
-                    all_boarders.extend(borders);
-                } else {
-                    all_boarders.insert(stone);
-                }
-            }
-            None => continue,
+        if here == neighbour {
+            let (mut points, borders) = collect_region(&next_point, board, visited);
+            all_points.append(&mut points);
+            all_boarders.extend(borders);
+        } else {
+            all_boarders.insert(neighbour.unwrap());
         }
     }
 
     (all_points, all_boarders)
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_scoring(){
+        let mut board = Board::new(5);
+        board.place_stone(Player::Black, Point::new(1, 2));
+        board.place_stone(Player::Black, Point::new(1, 4));
+        board.place_stone(Player::Black, Point::new(2, 2));
+        board.place_stone(Player::Black, Point::new(2, 3));
+        board.place_stone(Player::Black, Point::new(2, 4));
+        let mut territory = evaluate_territory(&board);
+        assert_eq!(5, territory.num_black_stones);
+        assert_eq!(20, territory.num_black_territory);
+        assert_eq!(0, territory.num_white_stones);
+        assert_eq!(0, territory.num_white_territory);
+        assert_eq!(0, territory.num_dame);
+        board.place_stone(Player::Black, Point::new(2, 5));
+        board.place_stone(Player::Black, Point::new(3, 1));
+        board.place_stone(Player::Black, Point::new(3, 2));
+        let mut territory = evaluate_territory(&board);
+        assert_eq!(8, territory.num_black_stones);
+        assert_eq!(17, territory.num_black_territory);
+        assert_eq!(0, territory.num_white_stones);
+        assert_eq!(0, territory.num_white_territory);
+        assert_eq!(0, territory.num_dame);
+        board.place_stone(Player::Black, Point::new(3, 3));
+        let mut territory = evaluate_territory(&board);
+        assert_eq!(9, territory.num_black_stones);
+        assert_eq!(16, territory.num_black_territory);
+        assert_eq!(0, territory.num_white_stones);
+        assert_eq!(0, territory.num_white_territory);
+        assert_eq!(0, territory.num_dame);
+        board.place_stone(Player::White, Point::new(3, 4));
+        board.place_stone(Player::White, Point::new(3, 5));
+        board.place_stone(Player::White, Point::new(4, 1));
+        board.place_stone(Player::White, Point::new(4, 2));
+        board.place_stone(Player::White, Point::new(4, 3));
+        board.place_stone(Player::White, Point::new(4, 4));
+        let mut territory = evaluate_territory(&board);
+        assert_eq!(9, territory.num_black_stones);
+        assert_eq!(4, territory.num_black_territory);
+        assert_eq!(6, territory.num_white_stones);
+        assert_eq!(6, territory.num_white_territory);
+        assert_eq!(0, territory.num_dame);
+        board.place_stone(Player::White, Point::new(5, 2));
+        board.place_stone(Player::White, Point::new(5, 4));
+        board.place_stone(Player::White, Point::new(5, 5));
+        let mut territory = evaluate_territory(&board);
+        assert_eq!(9, territory.num_black_stones);
+        assert_eq!(4, territory.num_black_territory);
+        assert_eq!(9, territory.num_white_stones);
+        assert_eq!(3, territory.num_white_territory);
+        assert_eq!(0, territory.num_dame);
+    }
+
+    #[test]
+    fn test_print_board(){
+        let mut board = Board::new(5);
+        board.place_stone(Player::Black, Point::new(1, 2));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(1, 4));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(2, 2));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(2, 3));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(2, 4));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(2, 5));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(3, 1));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(3, 2));
+        print!("{}\n", board);
+        board.place_stone(Player::Black, Point::new(3, 3));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(3, 4));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(3, 5));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(4, 1));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(4, 2));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(4, 3));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(4, 4));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(5, 2));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(5, 4));
+        print!("{}\n", board);
+        board.place_stone(Player::White, Point::new(5, 5));
+        print!("{}\n", board);
+    }
+    
 }
