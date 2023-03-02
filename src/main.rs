@@ -9,8 +9,10 @@ mod gotypes;
 
 mod goboard;
 mod scoring;
-mod agent;
-use agent::{RandomAgent, Agent, UserAgent};
+mod agents;
+use agents::agent::{Agent};
+use agents::randomagent::RandomAgent;
+use agents::useragent::UserAgent;
 mod sgf;
 
 use crate::scoring::GameResult;
