@@ -13,6 +13,7 @@ mod agents;
 use agents::agent::{Agent};
 use agents::randomagent::RandomAgent;
 use agents::useragent::UserAgent;
+use agents::mcagent::McAgent;
 mod sgf;
 
 use crate::scoring::GameResult;
@@ -22,41 +23,16 @@ mod zobrist;
 
 
 fn main() {
-    // let fp = "./data/215-garm-ManyFaces-ziv.sgf";
-    // let mut file = std::fs::File::open(fp).unwrap();
-    // let mut data = String::new();
-    // file.read_to_string(&mut data).unwrap();
-
-
-    // let moves = sgf::get_moves(&data);
-    // let mut game = GameState::new(9);
-    // for (i, (m, p)) in moves[0].iter().enumerate(){
-    //     GameState::apply_move(&mut game, m.clone());
-    //     print!("{}[2J", 27 as char);
-    //     let current_game = game.last().unwrap();
-    //     print!("{}\n", current_game);
-    //     print!("Move number: {}\n", i+1);
-
-    //     // // wait for user to press enter:
-    //     // let mut input = String::new();
-    //     // std::io::stdin().read_line(&mut input).unwrap();
-        
-    // }
-
-    let board_size = 9;
+    let board_size = 5;
 
     let mut game = GameState::new(board_size);
-    let bots = HashMap::from([
-        (gotypes::Player::Black, RandomAgent{}),
-        (gotypes::Player::White, RandomAgent{}),
-    ]);
+    let mut bots: HashMap<gotypes::Player, Box<dyn Agent>> = HashMap::new();
+    bots.insert(gotypes::Player::Black, Box::new(RandomAgent{}));
+    bots.insert(gotypes::Player::White, Box::new(RandomAgent{}));
 
     loop {
         print!("{}[2J", 27 as char);
-        // thread::sleep(time::Duration::from_millis(1000));
-        // wait for user to press enter
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
 
         let current_game = game.last().unwrap();
         print!("{}\n", current_game);

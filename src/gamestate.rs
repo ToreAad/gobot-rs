@@ -9,6 +9,20 @@ pub struct GameState{
     pub last_move: Option<Move>,
 }
 
+pub fn legal_moves(game_states: &Vec<GameState>) -> Vec<Point>{
+    let mut candidates = Vec::new();
+    let last_state = &game_states[game_states.len()-1];
+    for r in 1..last_state.board.num_rows+1{
+        for c in 1..last_state.board.num_cols+1{
+            let point = Point{row: r, col: c};
+            if GameState::is_valid_move(game_states, Move::Play(point)) && !is_point_an_eye(&last_state.board, point, last_state.next_player){
+                candidates.push(point);
+            }
+        }
+    }
+    candidates
+}
+
 impl fmt::Display for GameState{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} to play\n{}", self.next_player, self.board)
@@ -72,7 +86,7 @@ impl GameState{
     pub fn is_valid_move(states: &Vec<GameState>, move_: Move) -> bool{
         let last_state = &states[states.len()-1];
         let board = &last_state.board;
-        let player = last_state.next_player.other();
+        let player = last_state.next_player;
         if GameState::is_over(states){
             return false;
         }
@@ -105,7 +119,11 @@ impl GameState{
         board.is_self_capture(player, &point)
     }
 
-    pub fn apply_move(states: &mut Vec<GameState>, move_: Move){
+    pub fn apply_move(states: &mut Vec<GameState>, move_: Move) -> bool{
+        if !GameState::is_valid_move(states, move_.clone()){
+            return false;
+        }
+
         let prev_state = states.get(states.len()-1).unwrap();
 
         let mut next_state = GameState{
@@ -125,6 +143,7 @@ impl GameState{
             }
         }
         states.push(next_state);
+        true
     }
 
     pub fn new(board_size: i32) -> Vec<GameState>{
@@ -231,22 +250,10 @@ mod test{
         GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 3}));
         violates_ko = GameState::does_move_violate_ko(&states, Move::Play(Point{row: 3, col: 3}));
         assert_eq!(violates_ko, true);
-        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
-        violates_ko = GameState::does_move_violate_ko(&states, Move::Play(Point{row: 2, col: 3}));
+        violates_ko = GameState::does_move_violate_ko(&states, Move::Play(Point{row: 3, col: 3}));
         assert_eq!(violates_ko, true);    
     }
-
-    // Unsure if this is true
-    // #[test]
-    // fn test_is_valid_move(){
-    //     let mut states = GameState::new(2);
-    //     GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
-    //     assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 1, col: 1})), false);
-    //     GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
-    //     GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
-    //     assert_eq!(GameState::is_valid_move(&states, Move::Play(Point{row: 2, col: 2})), false);
-    // }
-
+    
     #[test]
     fn test_is_over(){
         let mut states = GameState::new(5);
@@ -267,6 +274,19 @@ mod test{
         assert_eq!(GameState::is_over(&states), false);
         GameState::apply_move(&mut states, Move::Pass);
         assert_eq!(GameState::is_over(&states), true);
+    }
+
+    #[test]
+    fn test_self_capture(){
+        let mut states = GameState::new(3);
+        GameState::apply_move(&mut states, Move::Play(Point{row: 2, col: 1}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 3, col: 3}));
+        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 2}));
+        assert_eq!(states.last().unwrap().board.is_self_capture(Player::White, &Point { row: 1, col: 1 }), true);
+        
+
+        GameState::apply_move(&mut states, Move::Play(Point{row: 1, col: 1}));
+
     }
 
 }

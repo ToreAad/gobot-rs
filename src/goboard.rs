@@ -445,4 +445,16 @@ mod test {
             false
         );
     }
+
+    #[test]
+    fn test_self_capture_simple(){
+        let mut board = Board::new(3);
+        board.place_stone(Player::Black, Point { row: 1, col: 2 });
+        board.place_stone(Player::Black, Point { row: 2, col: 1 });
+        
+        assert_eq!(
+            board.is_self_capture(Player::White, &Point { row: 1, col: 1 }),
+            true
+        );
+    }
 }
