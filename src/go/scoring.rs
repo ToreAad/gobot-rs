@@ -1,14 +1,25 @@
 use std::{collections::{HashMap, HashSet}, fmt};
 
-use crate::{
-    goboard::Board,
-    gotypes::{Player, Point},
+use crate::game::{point::Point, player::Player, score::Score};
+
+use super::{
+    goboard::Board
 };
 
 pub struct GameResult {
     pub black_score: f32,
     pub white_score: f32,
     pub komi: f32,
+}
+
+impl Score for GameResult {
+    fn score(&self, player: Player) -> f32 {
+        let w = self.white_score + self.komi;
+        match player {
+            Player::Black => self.black_score - w,
+            Player::White => w - self.black_score,
+        }
+    }
 }
 
 impl fmt::Display for GameResult{
@@ -190,7 +201,7 @@ mod tests{
         board.place_stone(Player::Black, Point::new(2, 2));
         board.place_stone(Player::Black, Point::new(2, 3));
         board.place_stone(Player::Black, Point::new(2, 4));
-        let mut territory = evaluate_territory(&board);
+        let territory = evaluate_territory(&board);
         assert_eq!(5, territory.num_black_stones);
         assert_eq!(20, territory.num_black_territory);
         assert_eq!(0, territory.num_white_stones);
@@ -199,14 +210,14 @@ mod tests{
         board.place_stone(Player::Black, Point::new(2, 5));
         board.place_stone(Player::Black, Point::new(3, 1));
         board.place_stone(Player::Black, Point::new(3, 2));
-        let mut territory = evaluate_territory(&board);
+        let territory = evaluate_territory(&board);
         assert_eq!(8, territory.num_black_stones);
         assert_eq!(17, territory.num_black_territory);
         assert_eq!(0, territory.num_white_stones);
         assert_eq!(0, territory.num_white_territory);
         assert_eq!(0, territory.num_dame);
         board.place_stone(Player::Black, Point::new(3, 3));
-        let mut territory = evaluate_territory(&board);
+        let territory = evaluate_territory(&board);
         assert_eq!(9, territory.num_black_stones);
         assert_eq!(16, territory.num_black_territory);
         assert_eq!(0, territory.num_white_stones);
@@ -218,7 +229,7 @@ mod tests{
         board.place_stone(Player::White, Point::new(4, 2));
         board.place_stone(Player::White, Point::new(4, 3));
         board.place_stone(Player::White, Point::new(4, 4));
-        let mut territory = evaluate_territory(&board);
+        let territory = evaluate_territory(&board);
         assert_eq!(9, territory.num_black_stones);
         assert_eq!(4, territory.num_black_territory);
         assert_eq!(6, territory.num_white_stones);
@@ -227,7 +238,7 @@ mod tests{
         board.place_stone(Player::White, Point::new(5, 2));
         board.place_stone(Player::White, Point::new(5, 4));
         board.place_stone(Player::White, Point::new(5, 5));
-        let mut territory = evaluate_territory(&board);
+        let territory = evaluate_territory(&board);
         assert_eq!(9, territory.num_black_stones);
         assert_eq!(4, territory.num_black_territory);
         assert_eq!(9, territory.num_white_stones);

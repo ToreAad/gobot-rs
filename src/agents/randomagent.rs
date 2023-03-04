@@ -1,29 +1,18 @@
 use super::agent::Agent;
 use rand::{thread_rng, Rng};
-use crate::gamestate::{GameState, is_point_an_eye, legal_moves};
-use crate::gotypes::Move;
-use crate::{gotypes::{Point}};
-
+use crate::game::game::Game;
+use crate::game::action::Action;
 
 pub struct RandomAgent{}
 
 impl Agent for RandomAgent{
-    fn select_move(&self, game_states: &Vec<GameState>) -> Move{
-        let mut candidates = Vec::new();
-        let last_state = &game_states[game_states.len()-1];
-        for r in 1..last_state.board.num_rows+1{
-            for c in 1..last_state.board.num_cols+1{
-                let point = Point{row: r, col: c};
-                if GameState::is_valid_move(game_states, Move::Play(point)) && !is_point_an_eye(&last_state.board, point, last_state.next_player){
-                    candidates.push(point);
-                }
-            }
-        }
+    fn select_action(&self, game_states: &dyn Game) -> Action{
+        let candidates = game_states.legal_moves();
         if candidates.len() == 0{
-            return Move::Pass;
+            return Action::Pass;
         }
         let mut rng = thread_rng();
-        Move::Play(candidates[rng.gen_range(0..candidates.len())])
+        candidates[rng.gen_range(0..candidates.len())]
     }
 }
 
@@ -32,31 +21,30 @@ mod tests{
     use std::collections::HashMap;
 
     use super::*;
-    use crate::{gamestate::GameState, gotypes};
+    use crate::{game::player::Player, go::go::Go};
 
     #[test]
     fn test_random_agent()
     {
         let board_size = 2;
-
-        let mut game = GameState::new(board_size);
+        let mut game = Go::new(board_size);
+    
         let bots = HashMap::from([
-            (gotypes::Player::Black, RandomAgent{}),
-            (gotypes::Player::White, RandomAgent{}),
+            (Player::Black, RandomAgent{}),
+            (Player::White, RandomAgent{}),
         ]);
     
         loop {
             print!("{}[2J", 27 as char);
-            let current_game = game.last().unwrap();
-            print!("{}", current_game);
-            if GameState::is_over(&game) {
+            print!("{}", game);
+            if game.is_over() {
                 break;
             }
     
-            let player = current_game.next_player();
+            let player = game.current_player();
             let agent = bots.get(&player).unwrap();
-            let move_ = agent.select_move(&game);
-            GameState::apply_move(&mut game, move_);
+            let action = agent.select_action(&game);
+            game.apply_move(action);
         }
     }
 }

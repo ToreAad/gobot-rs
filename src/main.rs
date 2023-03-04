@@ -1,57 +1,57 @@
-use std::{collections::HashMap, thread, time, io::Read};
-use std::fs::File;
-use std::io::prelude::*;
-
-
-mod gamestate;
-use gamestate::GameState;
-mod gotypes;
-
-mod goboard;
-mod scoring;
+mod go;
 mod agents;
+mod game;
+
+use std::{collections::HashMap, thread, time};
+
+
+use go::go::Go;
+use game::player::Player;
+
+
 use agents::agent::{Agent};
 use agents::randomagent::RandomAgent;
-use agents::useragent::UserAgent;
-use agents::mcagent::McAgent;
-mod sgf;
+// use agents::useragent::UserAgent;
+// use agents::mcagent::McAgent;
 
-use crate::scoring::GameResult;
-mod gostring;
+use crate::game::game::Game;
 
-mod zobrist;
 
 
 fn main() {
     let board_size = 5;
 
-    let mut game = GameState::new(board_size);
-    let mut bots: HashMap<gotypes::Player, Box<dyn Agent>> = HashMap::new();
-    bots.insert(gotypes::Player::Black, Box::new(RandomAgent{}));
-    bots.insert(gotypes::Player::White, Box::new(RandomAgent{}));
+    let mut game = Go::new(board_size);
+
+    let mut bots: HashMap<Player, Box<dyn Agent>> = HashMap::new();
+    bots.insert(Player::Black, Box::new(RandomAgent{}));
+    bots.insert(Player::White, Box::new(RandomAgent{}));
 
     loop {
         print!("{}[2J", 27 as char);
         thread::sleep(time::Duration::from_millis(100));
 
-        let current_game = game.last().unwrap();
-        print!("{}\n", current_game);
-        let result = GameResult::new(&current_game.board, 0.0);
+        print!("{}\n", game);
+        let result = game.score();
         print!("{}\n", result);
-        if GameState::is_over(&game) {
+        if game.is_over() {
             break;
         }
 
-        let player = current_game.next_player();
+        let player = game.current_player();
         let agent = bots.get(&player).unwrap();
-        let move_ = agent.select_move(&game);
-        GameState::apply_move(&mut game, move_);
+        let action = agent.select_action(&game);
+        game.apply_move(action);
     }
 }
 
 #[cfg(test)]
 mod tests{
+    use crate::go::gamestate::GameState;
+
     use super::*;
+    use go::sgf;
+    use std::io::prelude::*;
 
     #[test]
     fn test_sgf(){

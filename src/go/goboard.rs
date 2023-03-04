@@ -1,14 +1,14 @@
 use std::{
-    borrow::Borrow,
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     fmt,
     rc::Rc,
 };
 
-use crate::gotypes::{Player, Point};
-use crate::{
+use crate::game::{point::Point, player::Player};
+
+use super::{
     gostring::GoString,
-    zobrist::{HashCodes, ZoobristHash},
+    zobrist::{HashCodes, ZoobristHash}
 };
 
 #[derive(Clone)]
@@ -206,6 +206,53 @@ impl Board {
         }
 
         false
+    }
+
+
+    pub fn is_point_an_eye(self: &Self, point: Point, player: Player) -> bool{
+        let board = self;
+        
+        if !board.get(&point).is_none(){
+            return false;
+        }
+        for n in point.neighbours(){
+            match board.get(&n){
+                None => continue,
+                Some(other_player) => {
+                    if other_player != player{
+                        return false;
+                    }
+                }
+            }
+        }
+        let mut friendly_corners = 0;
+        let mut off_board_corners = 0;
+        let corners = vec![
+            Point{row: point.row - 1, col: point.col - 1},
+            Point{row: point.row - 1, col: point.col + 1},
+            Point{row: point.row + 1, col: point.col - 1},
+            Point{row: point.row + 1, col: point.col + 1},
+        ];
+        for corner in corners.iter(){
+            if board.is_on_grid(&corner){
+                match board.get(corner){
+                    None => continue,
+                    Some(other_player) => {
+                        if other_player == player{
+                            friendly_corners += 1;
+                        }
+                    }
+                }
+            } else{
+                off_board_corners += 1;
+            }
+    
+        }
+    
+        if off_board_corners > 0{
+            return (off_board_corners+friendly_corners) == 4;
+        }
+        friendly_corners >= 3
     }
 }
 
@@ -456,5 +503,30 @@ mod test {
             board.is_self_capture(Player::White, &Point { row: 1, col: 1 }),
             true
         );
+    }
+
+    #[test]
+    fn test_is_point_an_eye(){
+        let mut board = Board::new(5);
+        board.place_stone(Player::Black, Point{row: 1, col: 1});
+        board.place_stone(Player::Black, Point{row: 1, col: 2});
+        board.place_stone(Player::Black, Point{row: 2, col: 3});
+        board.place_stone(Player::Black, Point{row: 3, col: 3});
+        board.place_stone(Player::Black, Point{row: 4, col: 3});
+        board.place_stone(Player::Black, Point{row: 5, col: 3});
+
+        board.place_stone(Player::White, Point{row: 2, col: 1});
+        board.place_stone(Player::White, Point{row: 2, col: 2});
+        board.place_stone(Player::White, Point{row: 3, col: 2});
+        board.place_stone(Player::White, Point{row: 4, col: 2});
+        board.place_stone(Player::White, Point{row: 4, col: 1});
+        board.place_stone(Player::White, Point{row: 5, col: 2});
+
+        assert_eq!(board.is_point_an_eye(Point{row: 3, col: 1}, Player::White), true);
+        assert_eq!(board.is_point_an_eye(Point{row: 5, col: 1}, Player::White), true);
+        assert_eq!(board.is_point_an_eye(Point{row: 3, col: 1}, Player::Black), false);
+        assert_eq!(board.is_point_an_eye(Point{row: 5, col: 1}, Player::Black), false);
+        assert_eq!(board.is_point_an_eye(Point{row: 5, col: 5}, Player::Black), false);
+        assert_eq!(board.is_point_an_eye(Point{row: 5, col: 5}, Player::White), false);
     }
 }

@@ -1,6 +1,7 @@
-use std::{collections::{HashSet, HashMap}, fmt};
+use std::{collections::{HashSet}};
 
-use crate::gotypes::{Player, Point};
+use crate::game::{player::Player, point::Point};
+
 
 #[derive(Clone)]
 pub struct GoString{
@@ -23,8 +24,10 @@ impl GoString{
     }
 
     pub fn add_stone(&mut self, point: Point){
+        // TODO: Why dont I use this method?
         self.stones.insert(point);
     }
+
     pub fn remove_liberty(&mut self, point: &Point){
         self.liberties.remove(point);
     }

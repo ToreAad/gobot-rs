@@ -1,6 +1,6 @@
-use crate::gamestate::{GameState};
-use crate::gotypes::Move;
+use crate::game::game::Game;
+use crate::game::action::Action;
 
 pub trait Agent{
-    fn select_move(&self, game_states: &Vec<GameState>) -> Move;
+    fn select_action(&self, game: &dyn Game) -> Action;
 }

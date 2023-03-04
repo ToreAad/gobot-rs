@@ -3,14 +3,18 @@ use std::collections::VecDeque;
 use sgf_parse::SgfNode;
 use sgf_parse::go::{parse, Prop};
 use sgf_parse::go::Move as SgfMove;
+
+use crate::game::action::Action;
+use crate::game::player::Player;
+use crate::game::point::Point;
+
 // use sgf_parse::go::Point as SgfPoint;
 // use sgf_parse::GameTree::GoGame;
 
-use crate::gotypes::{Move, Point, Player};
 
 // use crate::{goboard::Board, gotypes::{Point, Player, Move}};
 
-pub fn get_move(node: &SgfNode<Prop>) -> Option<(Move, Player)>{
+pub fn get_move(node: &SgfNode<Prop>) -> Option<(Action, Player)>{
     for prop in node.properties(){
         match prop{
             Prop::B(m) => {
@@ -20,12 +24,12 @@ pub fn get_move(node: &SgfNode<Prop>) -> Option<(Move, Player)>{
                         let x = 1 + p.y as i32;
                         if x == 20 && y == 20{
                             // https://www.red-bean.com/sgf/go.html
-                            return Some((Move::Pass, Player::Black));
+                            return Some((Action::Pass, Player::Black));
                         }
-                        return Some((Move::Play(Point::new(x, y)), Player::Black));
+                        return Some((Action::Play(Point::new(x, y)), Player::Black));
                     },
                     SgfMove::Pass => {
-                        return Some((Move::Pass, Player::Black));
+                        return Some((Action::Pass, Player::Black));
                     },
                 }
             },
@@ -36,12 +40,12 @@ pub fn get_move(node: &SgfNode<Prop>) -> Option<(Move, Player)>{
                         let x = 1 + p.y as i32;
                         if x == 20 && y == 20{
                             // https://www.red-bean.com/sgf/go.html
-                            return Some((Move::Pass, Player::Black));
+                            return Some((Action::Pass, Player::Black));
                         }
-                        return Some((Move::Play(Point::new(x, y)), Player::White));
+                        return Some((Action::Play(Point::new(x, y)), Player::White));
                     },
                     SgfMove::Pass => {
-                        return Some((Move::Pass, Player::White));
+                        return Some((Action::Pass, Player::White));
                     },
                 }
             },
@@ -51,10 +55,10 @@ pub fn get_move(node: &SgfNode<Prop>) -> Option<(Move, Player)>{
     None
 }
 
-pub fn get_branches(node: &SgfNode<Prop>) -> Vec<VecDeque<(Move, Player)>>{
+pub fn get_branches(node: &SgfNode<Prop>) -> Vec<VecDeque<(Action, Player)>>{
      let _move = get_move(node);
 
-     let mut collection: Vec<VecDeque<(Move, Player)>> = Vec::new();
+     let mut collection: Vec<VecDeque<(Action, Player)>> = Vec::new();
     for child in node.children(){
         let res = get_branches(child);
         collection.extend(res);
@@ -71,10 +75,10 @@ pub fn get_branches(node: &SgfNode<Prop>) -> Vec<VecDeque<(Move, Player)>>{
 }
 
 
-pub fn get_moves(sgf: &str) -> Vec<VecDeque<(Move, Player)>>{
+pub fn get_moves(sgf: &str) -> Vec<VecDeque<(Action, Player)>>{
 
     let gametrees = parse(sgf).unwrap();
-    let mut collection: Vec<VecDeque<(Move, Player)>> = Vec::new();
+    let mut collection: Vec<VecDeque<(Action, Player)>> = Vec::new();
     
     for gt in gametrees{
         let res = get_branches(&gt);

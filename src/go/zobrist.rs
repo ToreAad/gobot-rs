@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::gotypes::{Player, Point};
+use crate::game::{player::Player, point::Point};
+
+
 
 pub type HashCodes = HashMap<(Point, Option<Player>), u64>;
 
